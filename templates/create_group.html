@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создать группу</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .back-link {
+            display: inline-block;
+            color: #65676b;
+            text-decoration: none;
+            margin-bottom: 1.5rem;
+        }
+        .form-box {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #333; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; margin-bottom: 0.5rem; color: #555; font-weight: 500; }
+        input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e1e3e4;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+        input:focus { outline: none; border-color: #0084ff; }
+        .members-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e1e3e4;
+            border-radius: 10px;
+            padding: 0.5rem;
+        }
+        .member-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .member-item:hover { background: #f0f2f5; }
+        .member-item input { width: auto; margin-right: 0.75rem; }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 0.75rem;
+        }
+        button {
+            width: 100%;
+            padding: 0.875rem;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { background: #0073e6; }
+        .flash {
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+        }
+        .flash.success { background: #d4edda; color: #155724; }
+        .flash.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Назад к чату</a>
+        <div class="form-box">
+            <h2>👥 Создать группу</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST">
+                <div class="form-group">
+                    <label>Название группы</label>
+                    <input type="text" name="name" required placeholder="Введите название">
+                </div>
+                <div class="form-group">
+                    <label>Участники</label>
+                    <div class="members-list">
+                        {% for user in users %}
+                        <label class="member-item">
+                            <input type="checkbox" name="members" value="{{ user.id }}">
+                            <img src="{{ user.avatar_url() }}" class="member-avatar" alt="">
+                            <span>@{{ user.username }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="submit">Создать группу</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[project]
+name = "messenger"
+version = "1.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "flask==3.0.0",
+    "flask-socketio==5.3.6",
+    "flask-sqlalchemy==3.1.1",
+    "psycopg2-binary==2.9.9",
+    "gunicorn==21.2.0",
+    "eventlet==0.34.2",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.railway]
+build = { builder = "nixpacks" }
+deploy = { startCommand = "gunicorn -k eventlet -w 1 -b 0.0.0.0:$PORT app:app" }

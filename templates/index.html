@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мессенджер</title>
+    <style>
+        :root {
+            --bg-primary: #f0f2f5;
+            --bg-secondary: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #65676b;
+            --border-color: #e1e3e4;
+            --accent-color: #0084ff;
+            --accent-hover: #0073e6;
+            --message-own: #0084ff;
+            --message-other: #ffffff;
+            --sidebar-width: 280px;
+        }
+        
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --border-color: #2a2a4a;
+            --accent-color: #4d84ff;
+            --accent-hover: #3d74ef;
+            --message-own: #4d84ff;
+            --message-other: #2a2a4a;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+        }
+        
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header h3 { font-size: 1.25rem; color: var(--text-primary); }
+        
+        .header-actions { display: flex; gap: 0.5rem; }
+        .header-btn {
+            background: var(--bg-primary);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+        }
+        .header-btn:hover { background: var(--border-color); }
+        
+        .user-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 0.25rem;
+        }
+        .user-item:hover { background: var(--bg-primary); }
+        .user-item.active { background: rgba(0, 132, 255, 0.1); }
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            margin-right: 0.75rem;
+            object-fit: cover;
+        }
+        .group-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            margin-right: 0.75rem;
+            object-fit: cover;
+        }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-status {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.125rem;
+        }
+        .online { color: #31a24c; }
+        .section-title {
+            padding: 1rem 1rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .add-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+        }
+        .chat-header {
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-title { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); }
+        .chat-status { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .chat-actions a {
+            margin-left: 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+        }
+        .chat-actions a:hover { background: var(--bg-primary); }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background: var(--bg-primary);
+        }
+        .message {
+            max-width: 65%;
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+            animation: messageIn 0.2s ease-out;
+        }
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.own {
+            align-self: flex-end;
+            background: var(--message-own);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.other {
+            align-self: flex-start;
+            background: var(--message-other);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .message .sender {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+        }
+        .message.own .sender { color: rgba(255,255,255,0.9); }
+        .message .text { font-size: 0.95rem; line-height: 1.4; }
+        .message .media { margin-top: 0.5rem; }
+        .message img { max-width: 100%; border-radius: 12px; cursor: pointer; }
+        .message video { max-width: 100%; border-radius: 12px; max-height: 300px; }
+        .message .time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.35rem;
+            text-align: right;
+        }
+        .message.sending { opacity: 0.6; }
+        .message.sending .time::after { content: ' ⏳'; }
+        
+        .video-circle {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #000;
+        }
+        .video-circle video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .recording-preview-overlay {
+            position: fixed;
+            bottom: 100px;
+            right: 300px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #000;
+            border: 3px solid #ff4444;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            animation: pulse-border 1s infinite;
+        }
+        @keyframes pulse-border {
+            0% { border-color: #ff4444; }
+            50% { border-color: #ff6666; }
+            100% { border-color: #ff4444; }
+        }
+        .recording-preview-overlay video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        .recording-timer {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .recording-hint {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff4444;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .no-chat {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        .input-area {
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+        .attach-btn {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            transition: background 0.2s;
+            border: none;
+        }
+        .attach-btn:hover { background: var(--border-color); }
+        .message-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            resize: none;
+            max-height: 120px;
+            min-height: 44px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .message-input:focus { outline: none; border-color: var(--accent-color); }
+        .send-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { background: var(--text-secondary); cursor: not-allowed; }
+        .hidden { display: none !important; }
+        
+        .record-btn {
+            background: #ff4444;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,68,68,0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255,68,68,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,68,68,0); }
+        }
+        
+        .upload-notice {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        .upload-notice.success { background: #2ecc71; }
+        .upload-notice.error { background: #e74c3c; }
+        .upload-notice.info { background: var(--accent-color); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* 🔥 МОБИЛЬНАЯ ВЕРСИЯ */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+        
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .mobile-menu-btn {
+                display: block;
+                margin-right: 1rem;
+            }
+            .overlay.active {
+                display: block;
+            }
+            .message {
+                max-width: 85%;
+            }
+            .recording-preview-overlay {
+                right: 20px;
+                bottom: 80px;
+                width: 100px;
+                height: 100px;
+            }
+            .chat-header {
+                padding: 0.75rem 1rem;
+            }
+            .input-area {
+                padding: 0.75rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+    
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>💬 Чаты</h3>
+            <div class="header-actions">
+                <button class="header-btn" onclick="toggleTheme()" title="Тема">🌙</button>
+                <button class="header-btn" onclick="window.location.href='/groups/create'" title="Создать группу">👥</button>
+            </div>
+        </div>
+        <div class="user-list">
+            <div class="section-title">
+                <span>Общие</span>
+            </div>
+            <div class="user-item active" onclick="selectGeneralChat()">
+                <div style="width:48px;height:48px;border-radius:50%;background:var(--accent-color);display:flex;align-items:center;justify-content:center;margin-right:0.75rem;font-size:1.5rem;">🌐</div>
+                <div class="user-info">
+                    <div class="user-name">Общий чат</div>
+                    <div class="user-status">Все пользователи</div>
+                </div>
+            </div>
+            
+            <div class="section-title">
+                <span>Группы</span>
+                <button class="add-btn" onclick="window.location.href='/groups/create'">+</button>
+            </div>
+            <div id="groupsList"></div>
+            
+            <div class="section-title">
+                <span>Личные</span>
+            </div>
+            <div id="usersList"></div>
+        </div>
+    </div>
+    
+    <div class="chat-area">
+        <div class="chat-header">
+            <div style="display:flex;align-items:center;">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+                <div>
+                    <div class="chat-title" id="chatTitle">🌐 Общий чат</div>
+                    <div class="chat-status" id="chatStatus"></div>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <a href="/profile/{{ session.get('username') }}">👤 Профиль</a>
+                <a href="/logout">🚪 Выйти</a>
+            </div>
+        </div>
+        <div class="messages" id="messagesList">
+            <div class="no-chat" id="noChatMsg">Выберите чат слева</div>
+        </div>
+        <div class="input-area">
+            <label class="attach-btn" title="Фото/Видео">
+                📎
+                <input type="file" id="mediaInput" class="hidden" accept="image/*,video/*" onchange="uploadMedia(this)">
+            </label>
+            <button class="attach-btn" id="circleBtn" title="Видео-кружочек">📹</button>
+            <textarea id="messageInput" class="message-input" placeholder="Напишите сообщение..." rows="1"></textarea>
+            <button class="send-btn" onclick="sendMessage()" id="sendBtn">➤</button>
+        </div>
+    </div>
+
+    <div id="recordingPreview" class="recording-preview-overlay hidden">
+        <div class="recording-hint">🔴 Запись...</div>
+        <video id="previewVideo" autoplay muted playsinline></video>
+        <div class="recording-timer" id="recordingTimer">0:00</div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const messagesList = document.getElementById('messagesList');
+        const messageInput = document.getElementById('messageInput');
+        const mediaInput = document.getElementById('mediaInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const circleBtn = document.getElementById('circleBtn');
+        const chatStatus = document.getElementById('chatStatus');
+        const recordingPreview = document.getElementById('recordingPreview');
+        const previewVideo = document.getElementById('previewVideo');
+        const recordingTimer = document.getElementById('recordingTimer');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        let currentRecipientId = null;
+        let currentGroupId = null;
+        let pendingMedia = null;
+        let allUsers = [];
+        let allGroups = [];
+        const currentUserId = {{ session.get('user_id') }};
+        const currentUsername = '{{ session.get('username') }}';
+        
+        let isRecording = false;
+        let mediaRecorder = null;
+        let videoChunks = [];
+        let cameraStream = null;
+        let recordingStartTime = null;
+        let recordingTimerInterval = null;
+
+        // 🔥 Загрузка темы
+        function loadTheme() {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+        
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+        
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        function loadUsers() {
+            fetch('/api/users')
+                .then(r => r.json())
+                .then(data => {
+                    allUsers = data.users;
+                    renderUsersList();
+                });
+        }
+        
+        function loadGroups() {
+            fetch('/api/groups')
+                .then(r => r.json())
+                .then(data => {
+                    allGroups = data.groups;
+                    renderGroupsList();
+                });
+        }
+
+        function renderUsersList() {
+            const container = document.getElementById('usersList');
+            if (allUsers.length === 0) {
+                container.innerHTML = '<div style="padding:1rem;color:var(--text-secondary);text-align:center">Нет других пользователей</div>';
+                return;
+            }
+            container.innerHTML = allUsers.map(u => `
+                <div class="user-item" onclick="selectPrivateChat(${u.id}, '${u.username}')" data-user-id="${u.id}">
+                    <img src="${u.avatar}?t=${Date.now()}" class="user-avatar" alt="">
+                    <div class="user-info">
+                        <div class="user-name">@${u.username}</div>
+                        <div class="user-status offline" id="status-${u.id}">○ оффлайн</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderGroupsList() {
+            const container = document.getElementById('groupsList');
+            if (allGroups.length === 0) {
+                container.innerHTML = '<div style="padding:1rem;color:var(--text-secondary);text-align:center">Нет групп</div>';
+                return;
+            }
+            container.innerHTML = allGroups.map(g => `
+                <div class="user-item" onclick="selectGroupChat(${g.id}, '${g.name}')" data-group-id="${g.id}">
+                    <img src="${g.avatar}?t=${Date.now()}" class="group-avatar" alt="">
+                    <div class="user-info">
+                        <div class="user-name">👥 ${g.name}</div>
+                        <div class="user-status">${g.member_count} участников</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectGeneralChat() {
+            currentRecipientId = null;
+            currentGroupId = null;
+            document.getElementById('chatTitle').textContent = '🌐 Общий чат';
+            chatStatus.textContent = '';
+            document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+            document.querySelector('.user-item:first-child').classList.add('active');
+            loadMessages();
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+        
+        function selectGroupChat(groupId, groupName) {
+            currentGroupId = groupId;
+            currentRecipientId = null;
+            document.getElementById('chatTitle').textContent = `👥 ${groupName}`;
+            chatStatus.textContent = '';
+            document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            loadMessages();
+            socket.emit('join_group', { group_id: groupId });
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+
+        function selectPrivateChat(userId, username) {
+            currentRecipientId = userId;
+            currentGroupId = null;
+            document.getElementById('chatTitle').textContent = `💬 @${username}`;
+            chatStatus.textContent = '';
+            document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            loadMessages();
+            if (window.innerWidth <= 768) toggleSidebar();
+        }
+
+        function loadMessages() {
+            messagesList.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:2rem">Загрузка...</div>';
+            let url = '/api/messages';
+            if (currentGroupId) {
+                url = `/api/messages/group/${currentGroupId}`;
+            } else if (currentRecipientId) {
+                url = `/api/messages/private/${currentRecipientId}`;
+            }
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    messagesList.innerHTML = '';
+                    (data.messages || []).forEach(appendMessage);
+                    scrollToBottom();
+                });
+        }
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text && !pendingMedia) return;
+            
+            if (currentRecipientId !== null || currentGroupId !== null) {
+                const tempMsg = {
+                    id: 'temp-' + Date.now(),
+                    sender: { id: currentUserId, username: currentUsername, avatar: '' },
+                    text: text,
+                    media_url: pendingMedia?.url,
+                    media_type: pendingMedia?.type,
+                    timestamp: new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}),
+                    is_private: currentRecipientId !== null,
+                    group_id: currentGroupId,
+                    isTemp: true
+                };
+                appendMessage(tempMsg);
+                scrollToBottom();
+            }
+            
+            sendBtn.disabled = true;
+            const payload = { 
+                text: text || null, 
+                recipient_id: currentRecipientId,
+                group_id: currentGroupId
+            };
+            if (pendingMedia) {
+                payload.media_url = pendingMedia.url;
+                payload.media_type = pendingMedia.type;
+            }
+            socket.emit('send_message', payload);
+            
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            pendingMedia = null;
+            mediaInput.value = '';
+            sendBtn.disabled = false;
+        }
+
+        function uploadMedia(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('media', file);
+            showUploadNotice('🔄 Загрузка файла...', 'info');
+            fetch('/upload/message', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    pendingMedia = { url: data.media_url, type: data.media_type, filename: data.filename };
+                    messageInput.placeholder = `📎 ${data.filename} — нажмите отправить`;
+                    showUploadNotice('✅ Файл загружен', 'success');
+                } else {
+                    showUploadNotice('❌ ' + (data.error || 'Ошибка'), 'error');
+                }
+            })
+            .catch(err => showUploadNotice('❌ Ошибка сети', 'error'));
+        }
+
+        function startRecordingTimer() {
+            recordingStartTime = Date.now();
+            recordingTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                recordingTimer.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopRecordingTimer() {
+            if (recordingTimerInterval) {
+                clearInterval(recordingTimerInterval);
+                recordingTimerInterval = null;
+            }
+        }
+
+        function showCameraPreview(stream) {
+            previewVideo.srcObject = stream;
+            recordingPreview.classList.remove('hidden');
+        }
+
+        function hideCameraPreview() {
+            recordingPreview.classList.add('hidden');
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            previewVideo.srcObject = null;
+            stopRecordingTimer();
+            recordingTimer.textContent = '0:00';
+        }
+
+        circleBtn.addEventListener('click', async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showUploadNotice('❌ Камера не поддерживается', 'error');
+                return;
+            }
+            
+            if (isRecording) {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                hideCameraPreview();
+                circleBtn.innerHTML = '📹';
+                circleBtn.classList.remove('record-btn');
+                circleBtn.disabled = false;
+                isRecording = false;
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: 400, height: 400, facingMode: 'user' }, 
+                        audio: false 
+                    });
+                    cameraStream = stream;
+                    
+                    showCameraPreview(stream);
+                    startRecordingTimer();
+                    
+                    let mimeType = 'video/webm';
+                    if (!MediaRecorder.isTypeSupported('video/webm')) {
+                        mimeType = 'video/mp4';
+                    }
+                    
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+                    videoChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            videoChunks.push(e.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        if (videoChunks.length === 0) {
+                            showUploadNotice('❌ Видео не записано', 'error');
+                            hideCameraPreview();
+                            return;
+                        }
+                        
+                        const videoBlob = new Blob(videoChunks, { type: mimeType });
+                        
+                        if (videoBlob.size < 100) {
+                            showUploadNotice('❌ Слишком короткая запись', 'error');
+                            hideCameraPreview();
+                            return;
+                        }
+                        
+                        const formData = new FormData();
+                        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+                        formData.append('media', videoBlob, `circle_${Date.now()}.${ext}`);
+                        
+                        showUploadNotice('🔄 Отправка кружочка...', 'info');
+                        
+                        try {
+                            const res = await fetch('/upload/message', { method: 'POST', body: formData });
+                            const data = await res.json();
+                            
+                            if (data.success && (currentRecipientId || currentGroupId)) {
+                                socket.emit('send_message', {
+                                    text: null,
+                                    media_url: data.media_url,
+                                    media_type: 'circle',
+                                    recipient_id: currentRecipientId,
+                                    group_id: currentGroupId
+                                });
+                                showUploadNotice('✅ Кружочек отправлен', 'success');
+                            } else {
+                                showUploadNotice('❌ Ошибка: ' + (data.error || 'Неизвестная'), 'error');
+                            }
+                        } catch (err) {
+                            showUploadNotice('❌ Ошибка сети', 'error');
+                        }
+                        
+                        hideCameraPreview();
+                    };
+                    
+                    mediaRecorder.start();
+                    circleBtn.innerHTML = '⏹';
+                    circleBtn.classList.add('record-btn');
+                    circleBtn.disabled = true;
+                    isRecording = true;
+                    showUploadNotice('📹 Запись... Нажмите ещё раз для отправки', 'info');
+                    
+                    setTimeout(() => {
+                        if (isRecording) {
+                            circleBtn.disabled = false;
+                        }
+                    }, 1000);
+                    
+                } catch (err) {
+                    showUploadNotice('❌ Нет доступа к камере', 'error');
+                }
+            }
+        });
+
+        function appendMessage(msg) {
+            document.getElementById('noChatMsg')?.classList.add('hidden');
+            const isOwn = msg.sender.id === currentUserId;
+            const div = document.createElement('div');
+            div.className = `message ${isOwn ? 'own' : 'other'} ${msg.isTemp ? 'sending' : ''}`;
+            div.dataset.messageId = msg.id;
+            
+            let mediaHtml = '';
+            if (msg.media_url) {
+                if (msg.media_type === 'image') {
+                    mediaHtml = `<div class="media"><img src="${msg.media_url}?t=${Date.now()}" alt=""></div>`;
+                } else if (msg.media_type === 'video') {
+                    mediaHtml = `<div class="media"><video controls src="${msg.media_url}?t=${Date.now()}"></video></div>`;
+                } else if (msg.media_type === 'circle') {
+                    mediaHtml = `
+                        <div class="media video-circle">
+                            <video src="${msg.media_url}?t=${Date.now()}" autoplay loop muted playsinline onclick="this.paused ? this.play() : this.pause()"></video>
+                        </div>`;
+                } else {
+                    mediaHtml = `<div class="media">📎 <a href="${msg.media_url}?t=${Date.now()}" target="_blank">Файл</a></div>`;
+                }
+            }
+            
+            div.innerHTML = `
+                ${!isOwn ? `<div class="sender" onclick="window.location.href='/profile/${msg.sender.username}'">@${msg.sender.username}</div>` : ''}
+                ${msg.text ? `<div class="text">${escapeHtml(msg.text)}</div>` : ''}
+                ${mediaHtml}
+                <div class="time">${msg.timestamp}</div>
+            `;
+            messagesList.appendChild(div);
+        }
+
+        function showUploadNotice(text, type) {
+            const existing = document.querySelector('.upload-notice');
+            if (existing) existing.remove();
+            const notice = document.createElement('div');
+            notice.className = `upload-notice ${type}`;
+            notice.textContent = text;
+            document.body.appendChild(notice);
+            setTimeout(() => notice.remove(), 3000);
+        }
+
+        socket.on('receive_message', (msg) => {
+            if (msg.sender.id === currentUserId && msg.is_private) {
+                const tempMsg = document.querySelector('.message.sending[data-message-id^="temp-"]');
+                if (tempMsg) tempMsg.remove();
+            }
+            let shouldShow = false;
+            if (currentGroupId && msg.group_id === currentGroupId) {
+                shouldShow = true;
+            } else if (currentRecipientId === null && !msg.is_private && !msg.group_id) {
+                shouldShow = true;
+            } else if (currentRecipientId && msg.is_private && !msg.group_id) {
+                const isParticipant = (msg.sender.id === currentUserId) || (msg.recipient_id === currentUserId);
+                const isCorrectChat = (msg.sender.id === currentRecipientId) || (msg.recipient_id === currentRecipientId);
+                shouldShow = isParticipant && isCorrectChat;
+            }
+            if (shouldShow) {
+                appendMessage(msg);
+                scrollToBottom();
+            }
+        });
+
+        socket.on('user_online', (data) => {
+            const el = document.getElementById(`status-${data.user_id}`);
+            if (el) { 
+                el.textContent = '● онлайн'; 
+                el.className = 'user-status online'; 
+            }
+        });
+        
+        socket.on('user_offline', (data) => {
+            const el = document.getElementById(`status-${data.user_id}`);
+            if (el) { 
+                el.textContent = '○ оффлайн'; 
+                el.className = 'user-status offline'; 
+            }
+        });
+
+        function scrollToBottom() {
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function init() {
+            loadTheme();
+            socket.emit('join_private_chat', { recipient_id: currentUserId });
+            loadUsers();
+            loadGroups();
+            selectGeneralChat();
+        }
+        
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
